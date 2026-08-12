@@ -7,7 +7,7 @@ from langchain_community.document_loaders import PyPDFLoader
 
 
 #initializing the text loader
-data=PyPDFLoader("/home/b1swas/Desktop/learnGenai/RagProject/src/Document_loaders/indiividual.pdf")
+data=PyPDFLoader("/home/b1swas/RAG/RagProject/src/Document_loaders/indiividual.pdf")
 docs=data.load() #it will always be in list
 
 

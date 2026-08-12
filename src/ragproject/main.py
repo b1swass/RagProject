@@ -4,13 +4,19 @@ from langchain_mistralai import ChatMistralAI
 from langchain_community.document_loaders import TextLoader
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.document_loaders import PyPDFLoader
-
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 #initializing the text loader
-data=TextLoader("/home/b1swas/Desktop/learnGenai/RagProject/src/Document_loaders/notes.txt")
-docs=data.load() #it will always be in list
+#data=TextLoader("/home/b1swas/RAG/RagProject/src/Document_loaders/notes.txt")
+#docs=data.load() #it will always be in list
 
-
+data=PyPDFLoader("/home/b1swas/RAG/RagProject/src/Document_loaders/indiividual.pdf")
+docs=data.load()
+text_splitter=RecursiveCharacterTextSplitter(
+    chunk_size=1000,
+    chunk_overlap=200
+)
+chunk=text_splitter.split_documents(docs)
 
 template=ChatPromptTemplate([
     ('system',
