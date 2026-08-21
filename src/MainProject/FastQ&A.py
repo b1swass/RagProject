@@ -8,8 +8,6 @@ import streamlit as st
 from langchain.agents import create_agent
 
 memory=InMemorySaver()
-if "memory" not in  st.session_state
-st.session_state.memory=InMemorySaver()
 search=TavilySearch()
 
 llm=init_chat_model(

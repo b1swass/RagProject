@@ -2,86 +2,79 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import streamlit as st
+
 from langchain_groq import ChatGroq
-from langchain.chat_models import init_chat_model
-from langchain_tavily import TavilySearch
-from langgraph.checkpoint.memory import InMemorySaver
+from langchain_community.utilities import GoogleSerperAPIWrapper
 from langchain.agents import create_agent
+from langgraph.checkpoint.memory import MemorySaver
 
 
 # -----------------------------
-# Page Configuration
+# Model & Tools
 # -----------------------------
-
-st.title("🤖 AI Assistant")
-
-
-# -----------------------------
-# Agent Setup
-# -----------------------------
-
-memory = InMemorySaver()
-
-search = TavilySearch()
 
 llm = ChatGroq(
     model="openai/gpt-oss-20b",
+    streaming=True
 )
 
-agent = create_agent(
-    model=llm,
-    tools=[search],
-    system_prompt="You are an amazing AI assistant and can search on google as well",
-    checkpointer=memory
-)
+search = GoogleSerperAPIWrapper()
+
+tools = [search.run]
 
 
 # -----------------------------
 # Session Memory
 # -----------------------------
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+if "memory" not in st.session_state:
+    st.session_state.memory = MemorySaver()
 
-if "thread_id" not in st.session_state:
-    st.session_state.thread_id = "streamlit-session-1"
-
-
-# -----------------------------
-# Display Chat History
-# -----------------------------
-
-for message in st.session_state.messages:
-
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+if "history" not in st.session_state:
+    st.session_state.history = []
 
 
 # -----------------------------
-# Chat Input
+# Agent
 # -----------------------------
 
-query = st.chat_input("Ask me anything...")
+agent = create_agent(
+    model=llm,
+    tools=tools,
+    checkpointer=st.session_state.memory,
+    system_prompt="You are an amazing AI agent and can search on Google as well"
+)
+
+
+# -----------------------------
+# Streamlit UI
+# -----------------------------
+
+st.subheader("QuickAnswer - Answers at the speed of thought")
+
+
+# Display previous messages
+for message in st.session_state.history:
+    st.chat_message(message["role"]).markdown(message["content"])
+
+
+# User input
+query = st.chat_input("Ask Anything?")
 
 
 if query:
 
-    # Show user message
-    with st.chat_message("user"):
-        st.markdown(query)
+    # Display user message
+    st.chat_message("user").markdown(query)
 
-    # Save user message in Streamlit session
-    st.session_state.messages.append({
+    st.session_state.history.append({
         "role": "user",
         "content": query
     })
 
 
-    # -----------------------------
-    # Invoke Agent
-    # -----------------------------
-
-    response = agent.invoke(
+    # Stream agent response
+    response = agent.stream(
         {
             "messages": [
                 {
@@ -92,22 +85,26 @@ if query:
         },
         {
             "configurable": {
-                "thread_id": st.session_state.thread_id
+                "thread_id": "1"
             }
-        }
+        },
+        stream_mode="messages"
     )
 
 
-    answer = response["messages"][-1].content
-
-
-    # Show assistant response
+    # Display streaming response
     with st.chat_message("assistant"):
-        st.markdown(answer)
+        space = st.empty()
+
+        message = ""
+
+        for chunk in response:
+            message += chunk[0].content
+            space.markdown(message)
 
 
-    # Save assistant response in Streamlit session
-    st.session_state.messages.append({
+    # Save assistant response
+    st.session_state.history.append({
         "role": "assistant",
-        "content": answer
+        "content": message
     })
