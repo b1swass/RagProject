@@ -1,6 +1,4 @@
-from dotenv import load_dotenv
-load_dotenv()
-
+import os
 import tempfile
 
 import streamlit as st
@@ -27,6 +25,23 @@ st.set_page_config(
 
 st.title("📚 PDF RAG Assistant")
 st.caption("Upload your documents and ask questions about them.")
+
+
+# --------------------------------------------------
+# Get Mistral API key
+# --------------------------------------------------
+
+if "MISTRAL_API_KEY" in st.secrets:
+    mistral_api_key = st.secrets["MISTRAL_API_KEY"]
+else:
+    mistral_api_key = os.getenv("MISTRAL_API_KEY")
+
+if not mistral_api_key:
+    st.error(
+        "MISTRAL_API_KEY is not configured. "
+        "Add it to Streamlit Secrets."
+    )
+    st.stop()
 
 
 # --------------------------------------------------
@@ -66,7 +81,10 @@ with st.sidebar:
     )
 
     if uploaded_files:
-        st.write(f"**{len(uploaded_files)} PDF(s) selected**")
+
+        st.write(
+            f"**{len(uploaded_files)} PDF(s) selected**"
+        )
 
         for file in uploaded_files:
             st.write(f"• {file.name}")
@@ -80,33 +98,44 @@ if process_button:
 
     if not uploaded_files:
 
-        st.warning("Please upload at least one PDF.")
+        st.warning(
+            "Please upload at least one PDF."
+        )
 
     else:
 
-        with st.spinner("Processing your documents..."):
+        with st.spinner(
+            "Processing your documents..."
+        ):
 
             all_docs = []
 
-            # Load every uploaded PDF
+            # --------------------------------------------------
+            # Load PDFs
+            # --------------------------------------------------
+
             for uploaded_file in uploaded_files:
 
-                # Create temporary file
                 with tempfile.NamedTemporaryFile(
                     delete=False,
                     suffix=".pdf"
                 ) as temp_file:
 
-                    temp_file.write(uploaded_file.getvalue())
+                    temp_file.write(
+                        uploaded_file.getvalue()
+                    )
+
                     temp_path = temp_file.name
 
-                # Load PDF
                 loader = PyPDFLoader(temp_path)
+
                 docs = loader.load()
 
-                # Add filename metadata
                 for doc in docs:
-                    doc.metadata["source"] = uploaded_file.name
+
+                    doc.metadata["source"] = (
+                        uploaded_file.name
+                    )
 
                 all_docs.extend(docs)
 
@@ -119,13 +148,18 @@ if process_button:
                 chunk_overlap=200
             )
 
-            split_docs = splitter.split_documents(all_docs)
+            split_docs = splitter.split_documents(
+                all_docs
+            )
 
             # --------------------------------------------------
-            # Create embeddings
+            # Create Mistral embeddings
             # --------------------------------------------------
 
-            embedding = MistralAIEmbeddings()
+            embedding = MistralAIEmbeddings(
+                model="mistral-embed",
+                api_key=mistral_api_key
+            )
 
             # --------------------------------------------------
             # Create vector store
@@ -139,14 +173,14 @@ if process_button:
             st.session_state.vector_store = vector_store
 
             # --------------------------------------------------
-            # Create retrieval tool
+            # Retrieval tool
             # --------------------------------------------------
 
             @tool
-            def retrieve_context(query: str):
+            def retrieve_context(query: str) -> str:
                 """
-                Retrieve relevant information from the uploaded
-                documents.
+                Retrieve relevant information from the
+                uploaded documents.
                 """
 
                 docs = vector_store.similarity_search(
@@ -175,7 +209,8 @@ if process_button:
             # --------------------------------------------------
 
             llm = init_chat_model(
-                model="mistral-small-latest"
+                model="mistral-small-latest",
+                api_key=mistral_api_key
             )
 
             # --------------------------------------------------
@@ -223,12 +258,17 @@ information was retrieved.
 
             st.session_state.agent = agent
 
+            # --------------------------------------------------
             # Store uploaded filenames
+            # --------------------------------------------------
+
             st.session_state.uploaded_files = [
-                file.name for file in uploaded_files
+                file.name
+                for file in uploaded_files
             ]
 
             # Clear previous chat
+
             st.session_state.messages = []
 
         st.success(
@@ -245,7 +285,9 @@ if st.session_state.uploaded_files:
 
     st.info(
         "Loaded documents: "
-        + ", ".join(st.session_state.uploaded_files)
+        + ", ".join(
+            st.session_state.uploaded_files
+        )
     )
 
 
@@ -256,7 +298,10 @@ if st.session_state.uploaded_files:
 for message in st.session_state.messages:
 
     with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+
+        st.markdown(
+            message["content"]
+        )
 
 
 # --------------------------------------------------
@@ -270,8 +315,6 @@ query = st.chat_input(
 
 if query:
 
-    # Check whether documents have been processed
-
     if st.session_state.agent is None:
 
         st.warning(
@@ -280,7 +323,9 @@ if query:
 
         st.stop()
 
-    # Display user message
+    # --------------------------------------------------
+    # User message
+    # --------------------------------------------------
 
     st.session_state.messages.append(
         {
@@ -290,9 +335,12 @@ if query:
     )
 
     with st.chat_message("user"):
+
         st.markdown(query)
 
+    # --------------------------------------------------
     # Generate response
+    # --------------------------------------------------
 
     with st.chat_message("assistant"):
 
@@ -314,11 +362,15 @@ if query:
                 }
             )
 
-            result = response["messages"][-1].content
+            result = response[
+                "messages"
+            ][-1].content
 
             st.markdown(result)
 
+    # --------------------------------------------------
     # Save assistant response
+    # --------------------------------------------------
 
     st.session_state.messages.append(
         {
