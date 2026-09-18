@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-
+from langchain_groq import ChatGroq
 load_dotenv()
 
 from langchain.tools import tool
@@ -27,8 +27,12 @@ Return recipe suggestions and eventually the recipe instructions to the user, if
 
 from langchain.agents import create_agent
 
+llm_model=ChatGroq(
+    model="openai/gpt-oss-120b",
+    temperature=0
+ )
 agent = create_agent(
-    model="mistral-small-latest",
+    model=llm_model,
     tools=[web_search],
     system_prompt=system_prompt
 )
@@ -38,3 +42,6 @@ while True:
     res=agent.invoke({'messages':[{'role':'user','content':quey}]},
                      {'configurable':{'thread_id':'1'}})
     print(res['messages'][-1].content)
+
+    
+    

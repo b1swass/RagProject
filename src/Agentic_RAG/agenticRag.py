@@ -9,7 +9,7 @@ from langchain.agents import create_agent
 from langgraph.checkpoint.memory import InMemorySaver
 from langchain_community.vectorstores import InMemoryVectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-
+from langchain_groq import ChatGroq
 loader=PyPDFLoader("/home/b1swas/RAG/RagProject/src/Agentic_RAG/medical_report.pdf")
 docs=loader.load()
 len(docs)
@@ -35,13 +35,14 @@ def retriever_tool(query:str):
     docs=vector_store.similarity_search(query=query,k=4)
     context=""
     for doc in docs:
-        context=doc.page_content+"\n\n"
+        context+=doc.page_content+"\n\n"
     return context
 
 #retriever_tool("Patient Name")
 
-llm_model=init_chat_model(
-    model="mistral-small-latest"
+llm_model=ChatGroq(
+    model="openai/gpt-oss-120b",
+    temperature=0
 )
 
 System_Prompt="""
@@ -54,7 +55,7 @@ agent=create_agent(
     system_prompt=System_Prompt,
 )
 
-query="what is doctor name ? wwrite a pyhton code to add two sum"
+query="what is being treated here by whom?"
 
 response=agent.invoke({"messages":[{'role':'user',"content":query}]})
 
